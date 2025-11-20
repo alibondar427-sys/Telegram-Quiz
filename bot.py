@@ -3,7 +3,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 from db import init_db, create_or_get_user, update_user
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 
 QUESTIONS = [
     {"q": "تهران پایتخت چه کشوری است؟", "a": "ایران"},
