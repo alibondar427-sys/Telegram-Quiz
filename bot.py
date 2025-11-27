@@ -54,7 +54,6 @@ async def score(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"نمره شما: {user[1]} از {len(QUESTIONS)}")
 
 def main():
-    # ساخت application به صورت sync
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
@@ -62,10 +61,10 @@ def main():
     app.add_handler(CommandHandler("score", score))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, answer))
     
-    # اجرای ربات
     print("🤖 ربات در حال اجرا است...")
+    
+    # برای Render - اجرای ربات
     app.run_polling()
 
 if __name__ == "__main__":
-    # حذف asyncio و استفاده مستقیم
     main()
