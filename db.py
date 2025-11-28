@@ -1,37 +1,68 @@
 import aiosqlite
+import os
 
-DB_NAME = "quiz.db"
+DB_PATH = "quiz_bot.db"
 
 async def init_db():
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
                 score INTEGER DEFAULT 0,
-                current_question INTEGER DEFAULT 0
+                current_question INTEGER DEFAULT 0,
+                total_quizzes INTEGER DEFAULT 0,
+                level TEXT DEFAULT 'آسان'
             )
-        """)
+        ''')
         await db.commit()
-
-async def get_user(user_id):
-    async with aiosqlite.connect(DB_NAME) as db:
-        cursor = await db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
-        return await cursor.fetchone()
 
 async def create_or_get_user(user_id):
-    user = await get_user(user_id)
-    if user:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO users (user_id) VALUES (?)",
+            (user_id,)
+        )
+        await db.commit()
+        
+        cursor = await db.execute(
+            "SELECT * FROM users WHERE user_id = ?",
+            (user_id,)
+        )
+        user = await cursor.fetchone()
+        await cursor.close()
         return user
-    
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("INSERT INTO users (user_id, score, current_question) VALUES (?, 0, 0)", (user_id,))
-        await db.commit()
-    return await get_user(user_id)
 
-async def update_user(user_id, score=None, question=None):
-    async with aiosqlite.connect(DB_NAME) as db:
+async def update_user(user_id, score=None, question=None, level=None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        updates = []
+        params = []
+        
         if score is not None:
-            await db.execute("UPDATE users SET score = ? WHERE user_id = ?", (score, user_id))
+            updates.append("score = ?")
+            params.append(score)
+        
         if question is not None:
-            await db.execute("UPDATE users SET current_question = ? WHERE user_id = ?", (question, user_id))
-        await db.commit()
+            updates.append("current_question = ?")
+            params.append(question)
+            
+        if level is not None:
+            updates.append("level = ?")
+            params.append(level)
+            
+        if updates:
+            params.append(user_id)
+            await db.execute(
+                f"UPDATE users SET {', '.join(updates)} WHERE user_id = ?",
+                params
+            )
+            await db.commit()
+
+async def get_user_stats(user_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT * FROM users WHERE user_id = ?",
+            (user_id,)
+        )
+        user = await cursor.fetchone()
+        await cursor.close()
+        return user
