@@ -1,9 +1,19 @@
 import os
+import asyncio
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 from db import init_db, create_or_get_user, update_user
+from flask import Flask
+from threading import Thread
 
 BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
+
+# سرور Flask برای باز کردن پورت
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "🤖 Telegram Bot is Running!"
 
 QUESTIONS = [
     {"q": "تهران پایتخت چه کشوری است؟", "a": "ایران"},
@@ -53,18 +63,37 @@ async def score(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = await create_or_get_user(user_id)
     await update.message.reply_text(f"نمره شما: {user[1]} از {len(QUESTIONS)}")
 
+async def run_bot():
+    """اجرای ربات تلگرام"""
+    await init_db()
+    
+    bot_app = Application.builder().token(BOT_TOKEN).build()
+    
+    bot_app.add_handler(CommandHandler("start", start))
+    bot_app.add_handler(CommandHandler("quiz", quiz))
+    bot_app.add_handler(CommandHandler("score", score))
+    bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, answer))
+    
+    print("🤖 ربات تلگرام در حال اجرا است...")
+    await bot_app.run_polling()
+
+def run_flask():
+    """اجرای سرور Flask برای پورت"""
+    print("🌐 سرور Flask در حال اجرا روی پورت 10000...")
+    app.run(host='0.0.0.0', port=10000)
+
 def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    if not BOT_TOKEN:
+        print("❌ توکن پیدا نشد!")
+        return
     
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("quiz", quiz))
-    app.add_handler(CommandHandler("score", score))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, answer))
+    # اجرای ربات در thread جداگانه
+    bot_thread = Thread(target=lambda: asyncio.run(run_bot()))
+    bot_thread.daemon = True
+    bot_thread.start()
     
-    print("🤖 ربات در حال اجرا است...")
-    
-    # برای Render - اجرای ربات
-    app.run_polling()
+    # اجرای Flask
+    run_flask()
 
 if __name__ == "__main__":
     main()
